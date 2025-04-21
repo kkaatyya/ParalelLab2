@@ -4,6 +4,8 @@
 #include <climits>
 #include <chrono>
 #include <iomanip>
+#include <thread>
+#include <mutex>
 
 using namespace std;
 using chrono::high_resolution_clock;
@@ -39,9 +41,32 @@ void executeSequentially(const vector<int>& numbers, int& xorResult)
     calculateXORByModulo15(0, numbers.size(), numbers, xorResult);
 }
 
+void parallelWithMutex(const vector<int>& numbers, int& xorResult, int threadCount)
+{
+    mutex mtx;
+    xorResult = 0;
+    vector<thread> threads;
+    int elementsPerThread = numbers.size() / threadCount;
+
+    for (int i = 0; i < threadCount; i++)
+    {
+        int startIndex = i * elementsPerThread;
+        int endIndex = (i == threadCount - 1) ? numbers.size() : startIndex + elementsPerThread;
+        threads.emplace_back([&, startIndex, endIndex]() {
+            int localXor = 0;
+            calculateXORByModulo15(startIndex, endIndex, numbers, localXor);
+            lock_guard<mutex> lock(mtx);
+            xorResult ^= localXor;
+            });
+    }
+
+    for (auto& th : threads) th.join();
+}
+
 int main()
 {
     vector<int> matrixSizes = { 10000, 1000000, 100000000 };
+    const int threadCount = 8;
 
     cout << "\n=========================== XOR Test Results ============================" << endl;
     cout << left << setw(15) << "Matrix Size" << setw(15) << "Mode" << setw(20) << "Time (s)" << "XOR Result" << endl;
@@ -52,17 +77,34 @@ int main()
         vector<int> numbers(matrixSize);
         fillArray(numbers);
 
-        int xorResult = 0;
-        auto start = high_resolution_clock::now();
-        executeSequentially(numbers, xorResult);
-        auto end = high_resolution_clock::now();
-        double elapsed = duration_cast<nanoseconds>(end - start).count() * 1e-9;
+        {
+            int xorResult = 0;
+            auto start = high_resolution_clock::now();
+            executeSequentially(numbers, xorResult);
+            auto end = high_resolution_clock::now();
+            double elapsed = duration_cast<nanoseconds>(end - start).count() * 1e-9;
 
-        cout << left << setw(15) << matrixSize
-            << setw(15) << "Sequential"
-            << setw(20) << fixed << setprecision(6) << elapsed
-            << xorResult << endl;
+            cout << left << setw(15) << matrixSize
+                << setw(15) << "Sequential"
+                << setw(20) << fixed << setprecision(6) << elapsed
+                << xorResult << endl;
+        }
+
+        {
+            int xorResult = 0;
+            auto start = high_resolution_clock::now();
+            parallelWithMutex(numbers, xorResult, threadCount);
+            auto end = high_resolution_clock::now();
+            double elapsed = duration_cast<nanoseconds>(end - start).count() * 1e-9;
+
+            cout << left << setw(15) << matrixSize
+                << setw(15) << "Mutex"
+                << setw(20) << fixed << setprecision(6) << elapsed
+                << xorResult << endl;
+        }
     }
+
+
 
     cout << "===========================================================================" << endl;
     return 0;
