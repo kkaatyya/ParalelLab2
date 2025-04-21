@@ -10,6 +10,18 @@ using chrono::high_resolution_clock;
 using chrono::duration_cast;
 using chrono::nanoseconds;
 
+void fillArray(vector<int>& numbers)
+{
+    random_device rd;
+    mt19937 gen(rd());
+    uniform_int_distribution<int> dist(INT_MIN, INT_MAX);
+
+    for (int& num : numbers)
+    {
+        num = dist(gen);
+    }
+}
+
 void calculateXORByModulo15(int startIndex, int endIndex, const vector<int>& numbers, int& xorResult)
 {
     xorResult = 0;
@@ -20,6 +32,11 @@ void calculateXORByModulo15(int startIndex, int endIndex, const vector<int>& num
             xorResult ^= numbers[i];
         }
     }
+}
+
+void executeSequentially(const vector<int>& numbers, int& xorResult)
+{
+    calculateXORByModulo15(0, numbers.size(), numbers, xorResult);
 }
 
 int main()
@@ -33,20 +50,11 @@ int main()
     for (int matrixSize : matrixSizes)
     {
         vector<int> numbers(matrixSize);
-
-        // Заповнюємо масив випадковими числами без функції fillArray
-        random_device rd;
-        mt19937 gen(rd());
-        uniform_int_distribution<int> dist(INT_MIN, INT_MAX);
-
-        for (int& num : numbers)
-        {
-            num = dist(gen);
-        }
+        fillArray(numbers);
 
         int xorResult = 0;
         auto start = high_resolution_clock::now();
-        calculateXORByModulo15(0, numbers.size(), numbers, xorResult);
+        executeSequentially(numbers, xorResult);
         auto end = high_resolution_clock::now();
         double elapsed = duration_cast<nanoseconds>(end - start).count() * 1e-9;
 
